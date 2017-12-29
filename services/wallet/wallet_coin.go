@@ -2,7 +2,6 @@ package wallet
 
 import (
 	"log"
-	"sync"
 
 	"github.com/sazor/bittrex-wallet/services/client"
 )
@@ -34,15 +33,6 @@ func (coin *WalletCoin) BtcBalance() float64 {
 	return coin.Last * coin.Balance
 }
 
-var once sync.Once
-
-func (coin *WalletCoin) CalcAvgPrice() float64 {
-	once.Do(func() {
-		coin.RefreshAvgPrice()
-	})
-	return coin.AvgPrice
-}
-
 func (coin *WalletCoin) RefreshAvgPrice() {
 	clnt, err := client.GetClient()
 	if err != nil {
@@ -67,7 +57,7 @@ func (coin *WalletCoin) RefreshAvgPrice() {
 	coin.AvgPrice = totalCost / totalUnits
 }
 
-func (coin *WalletCoin) GetPrices() {
+func (coin *WalletCoin) RefreshPrices() {
 	clnt, err := client.GetClient()
 	if err != nil {
 		log.Printf("Cant get prices for %s", coin.Ticker)
@@ -91,7 +81,7 @@ func (coin *WalletCoin) FetchInfo() {
 		avgDone <- true
 	}()
 	go func() {
-		coin.GetPrices()
+		coin.RefreshPrices()
 		pricesDone <- true
 	}()
 	<-avgDone

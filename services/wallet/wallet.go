@@ -3,7 +3,6 @@ package wallet
 import (
 	"errors"
 	"log"
-	"os"
 	"sync"
 
 	"github.com/sazor/bittrex-wallet/services/client"
@@ -24,7 +23,7 @@ func (wlt Wallet) Find(ticker string) (*WalletCoin, error) {
 func NewWallet(balances []bittrex.Balance) Wallet {
 	var wlt Wallet
 	for _, coin := range balances {
-		if coin.Balance > 0.0 && coin.Currency != "BTC" {
+		if coin.Balance > 0.0 && coin.Currency != "BTC" && coin.Currency != "USDT" {
 			wlt = append(wlt, NewWalletCoin(coin.Currency, coin.Balance))
 		}
 	}
@@ -71,13 +70,4 @@ func LoadDetailedCoin(wlt Wallet, ticker string) (*WalletCoin, error) {
 	}
 	coin.FetchInfo()
 	return coin, nil
-}
-
-func WalletBalances(order string, orderdir string) Wallet {
-	wlt, err := LoadDetailedWallet()
-	if err != nil {
-		os.Exit(1)
-	}
-	Sort(wlt, order, orderdir)
-	return wlt
 }

@@ -2,19 +2,30 @@ package wallet
 
 import "sort"
 
-func Sort(w Wallet, field string, direction string) {
-	ascSort := direction != "desc"
+const (
+	CurPriceSort = iota
+	AvgPriceSort
+	ChangeSort
+	BalanceSort
+)
+
+const (
+	Asc = iota
+	Desc
+)
+
+func Sort(w Wallet, field int, direction int) {
 	switch field {
-	case "curprice":
-		sortByCurrPrice(w, ascSort)
-	case "avgprice":
-		sortByAvgPrice(w, ascSort)
-	case "change":
-		sortByChange(w, ascSort)
-	case "balance":
-		sortByBalance(w, ascSort)
+	case CurPriceSort:
+		sortByCurrPrice(w, direction == Asc)
+	case AvgPriceSort:
+		sortByAvgPrice(w, direction == Asc)
+	case ChangeSort:
+		sortByChange(w, direction == Asc)
+	case BalanceSort:
+		sortByBalance(w, direction == Asc)
 	default:
-		sortByBalance(w, ascSort)
+		sortByBalance(w, direction == Asc)
 	}
 }
 
@@ -23,7 +34,7 @@ func sortByCurrPrice(wallet Wallet, asc bool) {
 		if !asc {
 			i, j = j, i
 		}
-		return wallet[i].CurrPrice < wallet[j].CurrPrice
+		return wallet[i].Last < wallet[j].Last
 	})
 }
 
@@ -41,7 +52,7 @@ func sortByBalance(wallet Wallet, asc bool) {
 		if !asc {
 			i, j = j, i
 		}
-		return wallet[i].btcBalance() < wallet[j].btcBalance()
+		return wallet[i].BtcBalance() < wallet[j].BtcBalance()
 	})
 }
 
@@ -50,6 +61,6 @@ func sortByChange(wallet Wallet, asc bool) {
 		if !asc {
 			i, j = j, i
 		}
-		return wallet[i].percentDiffPrice() < wallet[j].percentDiffPrice()
+		return wallet[i].PercentDiffPrice() < wallet[j].PercentDiffPrice()
 	})
 }
