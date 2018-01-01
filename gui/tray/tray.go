@@ -35,20 +35,30 @@ func Launch(wlt *wallet.Wallet) {
 	app.SetQuitOnLastWindowClosed(false)
 
 	systray := NewQSystemTrayIconWithCustomSlot(nil)
-	systray.SetIcon(gui.NewQIcon5(":/qml/images/icon.png"))
+	systray.SetIcon(gui.NewQIcon5(":/qml/images/icon32.png"))
 	systrayMenu := widgets.NewQMenu(nil)
+	bitcoinMenu := NewQMenuWithSlot(nil)
+	bitcoinMenu.SetTitle(fmt.Sprintf("%0.8f BTC", wlt.EstimatedBtcBalance()))
+	bitcoinMenu.SetIcon(gui.NewQIcon5(":/qml/images/logo/USDT-BTC.png"))
+	bitcoinMenu.ConnectChangeTitleSlot(func(newTitle string) {
+		bitcoinMenu.SetTitle(newTitle)
+	})
 	for ticker, coin := range wlt.Altcoins {
 		market := fmt.Sprintf("BTC-%s", ticker)
 		coinMenu := NewQMenuWithSlot(nil)
 		coinMenu.SetTitle(fmt.Sprintf("%s | %0.8f", market, coin.Last))
+		coinMenu.SetIcon(gui.NewQIcon5(fmt.Sprintf(":/qml/images/logo/%s.png", ticker)))
 		coinMenu.ConnectChangeTitleSlot(func(newTitle string) {
 			coinMenu.SetTitle(newTitle)
 		})
 		systrayMenu.AddMenu(coinMenu)
 		updateMenuTitle(coinMenu, coin)
+		updateBitcoinBalance(bitcoinMenu, wlt, coin)
 		addCoinAction(coinMenu, "Chart", coin, showChart)
 		addCoinAction(coinMenu, "Exchange", coin, openBittrex)
 	}
+	systrayMenu.AddSeparator()
+	systrayMenu.AddMenu(bitcoinMenu)
 	systrayMenu.AddSeparator()
 	settingsAction := systrayMenu.AddAction("Settings")
 	settingsAction.ConnectTriggered(func(bool) {
@@ -58,6 +68,7 @@ func Launch(wlt *wallet.Wallet) {
 	quitAction.ConnectTriggered(func(bool) {
 		app.Quit()
 	})
+	go wlt.SubscribeToUpdates()
 	systray.SetContextMenu(systrayMenu)
 	systrayMenu.ConnectAboutToShow(func() {
 		go wlt.SubscribeToUpdates()
@@ -76,6 +87,18 @@ func updateMenuTitle(menu *QMenuWithSlot, coin *wallet.WalletCoin) {
 			select {
 			case <-listener:
 				menu.ChangeTitleSlot(fmt.Sprintf("BTC-%s | %0.8f", coin.Ticker, coin.Last))
+			}
+		}
+	}()
+}
+
+func updateBitcoinBalance(menu *QMenuWithSlot, wlt *wallet.Wallet, coin *wallet.WalletCoin) {
+	listener := coin.NewListener()
+	go func() {
+		for {
+			select {
+			case <-listener:
+				menu.ChangeTitleSlot(fmt.Sprintf("%0.8f BTC", wlt.EstimatedBtcBalance()))
 			}
 		}
 	}()

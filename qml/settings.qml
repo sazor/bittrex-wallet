@@ -15,8 +15,8 @@ Page {
         currentIndex: tabBar.currentIndex
 
         Pane {
-            width: swipeView.width
-            height: swipeView.height
+            width: parent.width
+            height: parent.height
             Column {
                 width: parent.width
                 spacing: 20
@@ -86,8 +86,8 @@ Page {
         }
 
         Pane {
-            width: swipeView.width
-            height: swipeView.height
+            width: parent.width
+            height: parent.height
 
             Column {
                 spacing: 40
@@ -104,8 +104,8 @@ Page {
         }
 
         Pane {
-            width: swipeView.width
-            height: swipeView.height
+            width: parent.width
+            height: parent.height
 
             Column {
                 spacing: 40

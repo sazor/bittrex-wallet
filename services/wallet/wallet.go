@@ -11,6 +11,7 @@ import (
 
 type Wallet struct {
 	Altcoins      map[string]*WalletCoin
+	Bitcoin       *Bitcoin
 	stopUpdatesCh chan bool
 }
 
@@ -20,10 +21,11 @@ func (wlt *Wallet) SubscribeToUpdates() {
 		log.Println(err)
 		return
 	}
-	priceChannels := make(map[string]chan bittrex.SummaryState, len(wlt.Altcoins))
+	priceChannels := make(map[string]chan bittrex.SummaryState, len(wlt.Altcoins)+1)
 	for ticker, coin := range wlt.Altcoins {
 		priceChannels["BTC-"+ticker] = coin.SubscribeToUpdates()
 	}
+	priceChannels["USDT-BTC"] = wlt.Bitcoin.SubscribeToUpdates()
 	errCh := make(chan error)
 	stopWsCh := make(chan bool)
 	go func() {
@@ -46,6 +48,16 @@ func (wlt *Wallet) UnsubscribeFromUpdates() {
 	for _, coin := range wlt.Altcoins {
 		coin.StopSubscription()
 	}
+	wlt.Bitcoin.StopSubscription()
+}
+
+func (wlt *Wallet) EstimatedBtcBalance() float64 {
+	var balance float64
+	for _, coin := range wlt.Altcoins {
+		balance += coin.BtcBalance()
+	}
+	balance += wlt.Bitcoin.Balance
+	return balance
 }
 
 func NewWallet(balances []bittrex.Balance) *Wallet {
@@ -54,8 +66,12 @@ func NewWallet(balances []bittrex.Balance) *Wallet {
 	}
 	for _, coin := range balances {
 		balance, _ := coin.Balance.Float64()
-		if balance > 0.0 && coin.Currency != "BTC" && coin.Currency != "USDT" {
-			wlt.Altcoins[coin.Currency] = NewWalletCoin(coin.Currency, balance)
+		if balance > 0.0 && coin.Currency != "USDT" {
+			if coin.Currency != "BTC" {
+				wlt.Altcoins[coin.Currency] = NewWalletCoin(coin.Currency, balance)
+			} else {
+				wlt.Bitcoin = NewBitcoin(balance)
+			}
 		}
 	}
 	return wlt
@@ -82,13 +98,17 @@ func LoadDetailedWallet() (*Wallet, error) {
 		return nil, err
 	}
 	var wg sync.WaitGroup
-	wg.Add(len(wlt.Altcoins))
+	wg.Add(len(wlt.Altcoins) + 1)
 	for _, coin := range wlt.Altcoins {
 		go func(c *WalletCoin) {
 			c.FetchInfo()
 			wg.Done()
 		}(coin)
 	}
+	go func() {
+		wlt.Bitcoin.RefreshPrices()
+		wg.Done()
+	}()
 	wg.Wait()
 	return wlt, nil
 }
