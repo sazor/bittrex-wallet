@@ -4,8 +4,8 @@ import (
 	"errors"
 	"log"
 
+	bittrex "github.com/sazor/go-bittrex"
 	"github.com/theherk/viper"
-	bittrex "github.com/toorop/go-bittrex"
 )
 
 func GetClient() (*bittrex.Bittrex, error) {

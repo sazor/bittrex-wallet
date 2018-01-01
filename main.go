@@ -15,6 +15,6 @@ func main() {
 		log.Fatalln(err)
 		return
 	}
-	wallet.Sort(wlt, wallet.ChangeSort, wallet.Asc)
+	//wallet.Sort(wlt, wallet.ChangeSort, wallet.Asc)
 	tray.Launch(wlt)
 }

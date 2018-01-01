@@ -20,21 +20,34 @@ type QSystemTrayIconWithCustomSlot struct {
 	_ func() `slot:"triggerSlot"`
 }
 
+type QMenuWithSlot struct {
+	widgets.QMenu
+
+	_ func(newTitle string) `slot:"changeTitleSlot"`
+}
+
 type QmlBridge struct {
 	core.QObject
 }
 
-func Launch(wlt wallet.Wallet) {
+func Launch(wlt *wallet.Wallet) {
 	app := widgets.NewQApplication(len(os.Args), os.Args)
 	app.SetQuitOnLastWindowClosed(false)
 
 	systray := NewQSystemTrayIconWithCustomSlot(nil)
 	systray.SetIcon(gui.NewQIcon5(":/qml/images/icon.png"))
 	systrayMenu := widgets.NewQMenu(nil)
-	for _, coin := range wlt {
-		coinMenu := systrayMenu.AddMenu2(coin.Ticker)
-		addCoinAction(coinMenu, "Chart", showChart)
-		addCoinAction(coinMenu, "Exchange", openBittrex)
+	for ticker, coin := range wlt.Altcoins {
+		market := fmt.Sprintf("BTC-%s", ticker)
+		coinMenu := NewQMenuWithSlot(nil)
+		coinMenu.SetTitle(fmt.Sprintf("%s | %0.8f", market, coin.Last))
+		coinMenu.ConnectChangeTitleSlot(func(newTitle string) {
+			coinMenu.SetTitle(newTitle)
+		})
+		systrayMenu.AddMenu(coinMenu)
+		updateMenuTitle(coinMenu, coin)
+		addCoinAction(coinMenu, "Chart", coin, showChart)
+		addCoinAction(coinMenu, "Exchange", coin, openBittrex)
 	}
 	systrayMenu.AddSeparator()
 	settingsAction := systrayMenu.AddAction("Settings")
@@ -46,8 +59,26 @@ func Launch(wlt wallet.Wallet) {
 		app.Quit()
 	})
 	systray.SetContextMenu(systrayMenu)
+	systrayMenu.ConnectAboutToShow(func() {
+		go wlt.SubscribeToUpdates()
+	})
+	systrayMenu.ConnectAboutToHide(func() {
+		go wlt.UnsubscribeFromUpdates()
+	})
 	systray.Show()
 	widgets.QApplication_Exec()
+}
+
+func updateMenuTitle(menu *QMenuWithSlot, coin *wallet.WalletCoin) {
+	listener := coin.NewListener()
+	go func() {
+		for {
+			select {
+			case <-listener:
+				menu.ChangeTitleSlot(fmt.Sprintf("BTC-%s | %0.8f", coin.Ticker, coin.Last))
+			}
+		}
+	}()
 }
 
 func showSettings() {
@@ -62,15 +93,14 @@ func showSettings() {
 	settings.SetFixedHeight(380)
 	settings.SetFixedWidth(350)
 	settings.Show()
-	settings.SetFocus2()
 }
 
-func addCoinAction(menu *widgets.QMenu, coin string, callback func(string) func(bool)) {
-	action := menu.AddAction(coin)
+func addCoinAction(menu *QMenuWithSlot, name string, coin *wallet.WalletCoin, callback func(*wallet.WalletCoin) func(bool)) {
+	action := menu.AddAction(name)
 	action.ConnectTriggered(callback(coin))
 }
 
-func showChart(coin string) func(bool) {
+func showChart(coin *wallet.WalletCoin) func(bool) {
 	return func(bool) {
 		html := fmt.Sprintf(`<!-- TradingView Widget BEGIN -->
 					<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
@@ -91,16 +121,16 @@ func showChart(coin string) func(bool) {
 						  "hideideas": true
 						});
 						</script>
-						<!-- TradingView Widget END -->`, coin)
+						<!-- TradingView Widget END -->`, coin.Ticker)
 		view := webengine.NewQWebEngineView(nil)
 		view.SetHtml(html, core.NewQUrl())
-		view.SetWindowTitle(coin + "BTC")
+		view.SetWindowTitle(coin.Ticker + "BTC")
 		view.Show()
 	}
 }
 
-func openBittrex(coin string) func(bool) {
+func openBittrex(coin *wallet.WalletCoin) func(bool) {
 	return func(bool) {
-		open.Start("https://bittrex.com/Market/Index?MarketName=BTC-" + coin)
+		open.Start("https://bittrex.com/Market/Index?MarketName=BTC-" + coin.Ticker)
 	}
 }
