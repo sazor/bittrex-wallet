@@ -47,7 +47,7 @@ func Launch(wlt *wallet.Wallet) {
 		market := fmt.Sprintf("BTC-%s", ticker)
 		coinMenu := NewQMenuWithSlot(nil)
 		coinMenu.SetTitle(fmt.Sprintf("%s | %0.8f", market, coin.Last))
-		coinMenu.SetIcon(gui.NewQIcon5(fmt.Sprintf(":/qml/images/logo/%s.png", ticker)))
+		coinMenu.SetIcon(gui.NewQIcon5(fmt.Sprintf(":/qml/images/logo/%s.png", market)))
 		coinMenu.ConnectChangeTitleSlot(func(newTitle string) {
 			coinMenu.SetTitle(newTitle)
 		})
@@ -68,7 +68,6 @@ func Launch(wlt *wallet.Wallet) {
 	quitAction.ConnectTriggered(func(bool) {
 		app.Quit()
 	})
-	go wlt.SubscribeToUpdates()
 	systray.SetContextMenu(systrayMenu)
 	systrayMenu.ConnectAboutToShow(func() {
 		go wlt.SubscribeToUpdates()
